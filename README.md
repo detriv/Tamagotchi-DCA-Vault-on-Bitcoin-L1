@@ -83,7 +83,7 @@ MOBILE (≤480px):
 ### 1. Clone & Open
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/bitcoin-garden.git
+https://github.com/detriv/Tamagotchi-DCA-Vault-on-Bitcoin-L1.git
 cd bitcoin-garden
 
 # No build step needed — single HTML file
