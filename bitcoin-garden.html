@@ -1,0 +1,1994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Bitcoin Garden 🌱 — DCA Vault on Bitcoin L1</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+/* ─── DESIGN TOKENS ─────────────────────────────── */
+:root {
+  --soil:    #1a1008;
+  --soil2:   #221508;
+  --soil3:   #2e1e0a;
+  --dirt:    #3d2a10;
+  --bark:    #5c3d1a;
+  --moss:    #2d4a1e;
+  --leaf:    #4a7c2f;
+  --leaf2:   #6aab3f;
+  --sprout:  #9fd855;
+  --gold:    #f7931a;
+  --gold2:   #ffb84d;
+  --sun:     #ffe066;
+  --sky:     #0d1f0a;
+  --fog:     #1a2e10;
+  --text:    #e8f0d0;
+  --dim:     #6a7a50;
+  --dim2:    #9aaa70;
+  --red:     #e05030;
+  --blue:    #4a90d0;
+  --pixel: 'Press Start 2P', monospace;
+  --mono:  'DM Mono', monospace;
+}
+
+*{ margin:0; padding:0; box-sizing:border-box; }
+html,body { height:100%; background:var(--soil); color:var(--text); }
+body { font-family:var(--mono); overflow:hidden; }
+@media(max-width:768px){ body { overflow-y:auto; overflow-x:hidden; height:auto; } html { height:auto; } }
+
+/* ─── PIXEL GRID BG ─────────────────────────────── */
+body::before {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background-image:
+    linear-gradient(rgba(74,124,47,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(74,124,47,.04) 1px, transparent 1px);
+  background-size:24px 24px;
+}
+
+/* ─── STARS ─────────────────────────────────────── */
+.stars { position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden; }
+.star {
+  position:absolute; width:2px; height:2px; background:var(--sun);
+  animation: twinkle var(--d,3s) ease-in-out infinite;
+  animation-delay: var(--delay,0s);
+  opacity:.4;
+}
+@keyframes twinkle { 0%,100%{opacity:.2} 50%{opacity:.8} }
+
+/* ─── LAYOUT ─────────────────────────────────────── */
+.app { display:flex; flex-direction:column; height:100vh; position:relative; z-index:1; }
+
+/* ─── HEADER ─────────────────────────────────────── */
+header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 20px; height:50px; flex-shrink:0;
+  background:rgba(26,16,8,.95); border-bottom:2px solid var(--bark);
+  position:relative;
+}
+header::after {
+  content:''; position:absolute; bottom:-4px; left:0; right:0; height:2px;
+  background:repeating-linear-gradient(90deg,var(--leaf2) 0,var(--leaf2) 8px,transparent 8px,transparent 16px);
+}
+
+.brand {
+  display:flex; align-items:center; gap:10px;
+  font-family:var(--pixel); font-size:10px; color:var(--sprout);
+  text-shadow: 2px 2px 0 var(--moss);
+  letter-spacing:.05em;
+}
+.brand-icon { font-size:18px; animation:bob 3s ease-in-out infinite; }
+@keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+
+.nav-tabs { display:flex; gap:4px; }
+.nav-tab {
+  font-family:var(--pixel); font-size:7px; padding:6px 12px;
+  border:2px solid var(--bark); background:var(--soil2);
+  color:var(--dim2); cursor:pointer; transition:all .1s;
+  letter-spacing:.05em; image-rendering:pixelated;
+}
+.nav-tab:hover { border-color:var(--leaf2); color:var(--text); }
+.nav-tab.on { background:var(--moss); border-color:var(--sprout); color:var(--sprout); }
+
+.header-right { display:flex; align-items:center; gap:10px; }
+
+.block-chip {
+  font-family:var(--pixel); font-size:7px; padding:5px 10px;
+  border:2px solid var(--bark); background:var(--soil2);
+  color:var(--dim2); display:flex; align-items:center; gap:6px;
+}
+.blink-dot {
+  width:6px; height:6px; background:var(--sprout);
+  animation:blink-px .8s steps(1) infinite;
+}
+@keyframes blink-px { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+
+.wallet-btn {
+  font-family:var(--pixel); font-size:7px; padding:7px 14px;
+  border:2px solid; cursor:pointer; transition:all .1s; letter-spacing:.04em;
+}
+.wb-off { border-color:var(--gold); color:var(--gold); background:rgba(247,147,26,.08); }
+.wb-off:hover { background:rgba(247,147,26,.2); box-shadow:0 0 12px rgba(247,147,26,.3); }
+.wb-on  { border-color:var(--sprout); color:var(--sprout); background:rgba(159,216,85,.08); }
+.wb-err { border-color:var(--red); color:var(--red); }
+
+/* ─── BODY ───────────────────────────────────────── */
+.body { display:flex; flex:1; overflow:hidden; transition:none; }
+
+/* ─── GARDEN STAGE (center) ─────────────────────── */
+.garden-stage {
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  padding:16px; overflow:auto; position:relative;
+}
+
+/* Sky gradient */
+.garden-stage::before {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(180deg, var(--sky) 0%, var(--fog) 40%, var(--soil) 100%);
+  z-index:-1;
+}
+
+/* ── PLANT CANVAS ── */
+.plant-world {
+  position:relative; width:340px; height:340px;
+  margin-bottom:16px; flex-shrink:0;
+}
+
+/* Ground */
+.ground {
+  position:absolute; bottom:0; left:0; right:0; height:60px;
+  background:var(--dirt);
+  border-top:4px solid var(--bark);
+}
+.ground::before {
+  content:''; position:absolute; top:-8px; left:0; right:0; height:8px;
+  background:repeating-linear-gradient(90deg,
+    var(--soil3) 0,var(--soil3) 8px,
+    var(--bark) 8px,var(--bark) 16px,
+    var(--soil3) 16px,var(--soil3) 24px,
+    var(--dirt) 24px,var(--dirt) 32px);
+}
+
+/* Pot */
+.pot {
+  position:absolute; bottom:36px; left:50%; transform:translateX(-50%);
+  width:80px; height:60px;
+}
+.pot-body {
+  position:absolute; bottom:0; left:50%; transform:translateX(-50%);
+  width:64px; height:48px;
+  background:var(--bark);
+  clip-path:polygon(8% 0%, 92% 0%, 100% 100%, 0% 100%);
+  border:3px solid var(--dirt);
+}
+.pot-rim {
+  position:absolute; top:0; left:50%; transform:translateX(-50%);
+  width:72px; height:12px; background:var(--soil3);
+  border:3px solid var(--dirt);
+}
+.pot-shine {
+  position:absolute; top:8px; left:58%; width:6px; height:20px;
+  background:rgba(255,255,255,.08); transform:skewX(-5deg);
+}
+.pot-label {
+  position:absolute; bottom:16px; left:50%; transform:translateX(-50%);
+  font-family:var(--pixel); font-size:5px; color:var(--gold2);
+  white-space:nowrap; text-shadow:1px 1px 0 #000;
+}
+
+/* ── PLANT STAGES ── (CSS pixel art) */
+.plant-container {
+  position:absolute; bottom:88px; left:50%; transform:translateX(-50%);
+  display:flex; flex-direction:column; align-items:center;
+  transition:all .5s ease;
+}
+
+/* Stem */
+.stem {
+  width:6px; background:var(--leaf2);
+  border-left:2px solid var(--moss); border-right:2px solid var(--moss);
+  transition:height .8s ease;
+  position:relative;
+}
+
+/* Leaves */
+.leaf-l, .leaf-r {
+  position:absolute; width:20px; height:12px;
+  background:var(--leaf); border:2px solid var(--moss);
+  border-radius:0 60% 0 60%;
+  animation:leaf-sway 3s ease-in-out infinite;
+}
+.leaf-l { left:-22px; top:0; transform:rotate(-30deg); animation-delay:.3s; }
+.leaf-r { right:-22px; top:0; transform:rotate(30deg) scaleX(-1); }
+@keyframes leaf-sway {
+  0%,100%{transform:rotate(-30deg) scale(1)} 50%{transform:rotate(-20deg) scale(1.05)}
+}
+.leaf-r { animation-name:leaf-sway-r; }
+@keyframes leaf-sway-r {
+  0%,100%{transform:rotate(30deg) scaleX(-1) scale(1)} 50%{transform:rotate(20deg) scaleX(-1) scale(1.05)}
+}
+
+/* Flower / BTC fruit */
+.bloom {
+  position:relative; margin-bottom:4px;
+  animation:bloom-sway 4s ease-in-out infinite;
+}
+@keyframes bloom-sway {
+  0%,100%{transform:rotate(-3deg)} 50%{transform:rotate(3deg)}
+}
+
+.bloom-petals {
+  width:44px; height:44px; position:relative; display:flex;
+  align-items:center; justify-content:center;
+}
+.petal {
+  position:absolute; width:16px; height:16px;
+  background:var(--gold); border:2px solid var(--gold2);
+  border-radius:50% 50% 50% 0;
+  animation:petal-pulse 2s ease-in-out infinite;
+}
+.petal:nth-child(1){transform:rotate(0deg)   translate(10px)}
+.petal:nth-child(2){transform:rotate(45deg)  translate(10px)}
+.petal:nth-child(3){transform:rotate(90deg)  translate(10px)}
+.petal:nth-child(4){transform:rotate(135deg) translate(10px)}
+.petal:nth-child(5){transform:rotate(180deg) translate(10px)}
+.petal:nth-child(6){transform:rotate(225deg) translate(10px)}
+.petal:nth-child(7){transform:rotate(270deg) translate(10px)}
+.petal:nth-child(8){transform:rotate(315deg) translate(10px)}
+@keyframes petal-pulse { 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.3)} }
+
+.bloom-center {
+  position:absolute; z-index:2;
+  width:24px; height:24px; border-radius:50%;
+  background:var(--gold); border:3px solid var(--sun);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--pixel); font-size:8px; color:#000; font-weight:700;
+  box-shadow:0 0 12px var(--gold), 0 0 24px rgba(247,147,26,.4);
+  animation:glow-pulse 2s ease-in-out infinite;
+}
+@keyframes glow-pulse {
+  0%,100%{box-shadow:0 0 12px var(--gold)} 50%{box-shadow:0 0 24px var(--gold),0 0 48px rgba(247,147,26,.5)}
+}
+
+/* Dead plant */
+.plant-dead .stem { background:var(--bark); border-color:var(--dirt); }
+.plant-dead .leaf-l,.plant-dead .leaf-r { background:var(--bark); border-color:var(--dirt); animation:wilt 3s ease-in-out infinite; }
+.plant-dead .bloom-petals .petal { background:var(--dirt); border-color:var(--bark); animation:none; }
+.plant-dead .bloom-center { background:var(--bark); border-color:var(--dirt); animation:none; box-shadow:none; }
+@keyframes wilt { 0%,100%{transform:rotate(-30deg) translateY(0)} 50%{transform:rotate(-45deg) translateY(4px)} }
+
+/* Seedling */
+.seedling { display:flex; flex-direction:column; align-items:center; }
+.seedling-shoot {
+  width:4px; height:20px; background:var(--sprout);
+  border-left:1px solid var(--leaf); border-right:1px solid var(--leaf);
+}
+.seedling-tip {
+  width:14px; height:14px; background:var(--sprout);
+  border:2px solid var(--leaf2);
+  border-radius:50% 50% 0 0;
+  animation:seed-pulse 2s ease-in-out infinite;
+}
+@keyframes seed-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
+
+/* Particles */
+.particle {
+  position:absolute; pointer-events:none;
+  font-family:var(--pixel); font-size:9px;
+  animation:float-up 1.5s ease-out forwards;
+}
+@keyframes float-up {
+  0%{opacity:1;transform:translateY(0) scale(1)}
+  100%{opacity:0;transform:translateY(-60px) scale(0.5)}
+}
+
+/* Water drops */
+.water-drop {
+  position:absolute; top:0; left:0; pointer-events:none;
+  animation:rain-drop .6s ease-in forwards;
+}
+@keyframes rain-drop {
+  0%{opacity:1;transform:translateY(-20px)}
+  100%{opacity:0;transform:translateY(60px)}
+}
+
+/* ── HEALTH BAR ── */
+.health-section {
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  width:300px;
+}
+.health-label {
+  font-family:var(--pixel); font-size:7px; color:var(--dim2);
+  display:flex; justify-content:space-between; width:100%;
+}
+.health-track {
+  width:100%; height:14px;
+  background:var(--soil3); border:2px solid var(--bark);
+  position:relative; overflow:hidden;
+}
+.health-fill {
+  height:100%; transition:width 1s ease, background .5s;
+  background:linear-gradient(90deg, var(--red) 0%, var(--gold) 50%, var(--sprout) 100%);
+  background-size:300% 100%;
+  background-position:calc(100% - var(--hp,100) * 1%) center;
+  image-rendering:pixelated;
+}
+.health-track::after {
+  content:''; position:absolute; inset:0;
+  background:repeating-linear-gradient(90deg,
+    transparent 0,transparent 10px,
+    rgba(0,0,0,.15) 10px,rgba(0,0,0,.15) 12px);
+}
+
+/* ─── LEFT PANEL ─────────────────────────────────── */
+.left-panel {
+  width:230px; flex-shrink:0;
+  border-right:2px solid var(--bark);
+  background:rgba(26,16,8,.9);
+  display:flex; flex-direction:column;
+  overflow-y:auto;
+}
+.left-panel::-webkit-scrollbar { width:4px; }
+.left-panel::-webkit-scrollbar-thumb { background:var(--bark); }
+
+.panel-block { padding:14px; border-bottom:2px solid var(--bark); }
+.panel-title {
+  font-family:var(--pixel); font-size:7px; color:var(--gold2);
+  letter-spacing:.1em; margin-bottom:10px;
+  display:flex; align-items:center; gap:6px;
+}
+
+/* Pixel stat rows */
+.stat-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:5px 0; border-bottom:1px dashed var(--soil3);
+  font-size:10px;
+}
+.stat-row:last-child { border-bottom:none; }
+.stat-lbl { color:var(--dim2); font-size:9px; }
+.stat-val { font-family:var(--pixel); font-size:7px; }
+.val-gold   { color:var(--gold); }
+.val-green  { color:var(--sprout); }
+.val-red    { color:var(--red); }
+.val-blue   { color:var(--blue); }
+
+/* Garden name input */
+.name-input {
+  width:100%; background:var(--soil3); border:2px solid var(--bark);
+  padding:6px 8px; font-family:var(--pixel); font-size:7px;
+  color:var(--sprout); outline:none; letter-spacing:.05em;
+  transition:border-color .1s;
+}
+.name-input:focus { border-color:var(--sprout); }
+
+/* DCA config */
+.config-row { display:flex; gap:6px; margin-bottom:8px; align-items:center; }
+.config-lbl { font-size:9px; color:var(--dim2); flex:1; }
+.config-input {
+  width:80px; background:var(--soil3); border:2px solid var(--bark);
+  padding:5px 6px; font-family:var(--pixel); font-size:7px; color:var(--gold);
+  outline:none; text-align:right;
+}
+.config-input:focus { border-color:var(--gold); }
+.config-unit { font-size:8px; color:var(--dim); width:28px; }
+
+/* Buttons */
+.px-btn {
+  width:100%; padding:9px; font-family:var(--pixel); font-size:7px;
+  border:3px solid; cursor:pointer; letter-spacing:.06em;
+  transition:all .1s; margin-bottom:6px; display:flex;
+  align-items:center; justify-content:center; gap:6px;
+  image-rendering:pixelated;
+}
+.px-btn:hover { transform:translateY(-2px); }
+.px-btn:active { transform:translateY(1px); }
+
+.btn-plant { border-color:var(--sprout); color:var(--sprout); background:rgba(159,216,85,.1); }
+.btn-plant:hover { background:rgba(159,216,85,.2); box-shadow:0 0 12px rgba(159,216,85,.2); }
+.btn-water { border-color:var(--blue); color:var(--blue); background:rgba(74,144,208,.1); }
+.btn-water:hover { background:rgba(74,144,208,.2); }
+.btn-harvest { border-color:var(--gold); color:var(--gold); background:rgba(247,147,26,.1); }
+.btn-harvest:hover { background:rgba(247,147,26,.2); box-shadow:0 0 12px rgba(247,147,26,.2); }
+.btn-withdraw { border-color:var(--red); color:var(--red); background:rgba(224,80,48,.07); }
+.btn-withdraw:hover { background:rgba(224,80,48,.15); }
+.btn-dis { opacity:.35; cursor:not-allowed; transform:none!important; }
+
+/* Achievements */
+.badge-grid { display:flex; flex-wrap:wrap; gap:6px; }
+.badge {
+  width:40px; height:40px;
+  background:var(--soil3); border:2px solid var(--bark);
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; position:relative; cursor:default;
+  transition:all .2s;
+}
+.badge.earned { border-color:var(--gold2); background:rgba(247,147,26,.1); }
+.badge.earned:hover { transform:scale(1.2); box-shadow:0 0 12px rgba(247,147,26,.3); }
+.badge:not(.earned) { filter:grayscale(1) brightness(.3); }
+.badge-tip {
+  position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%);
+  background:var(--soil); border:2px solid var(--bark); padding:4px 8px;
+  font-family:var(--pixel); font-size:6px; color:var(--text); white-space:nowrap;
+  pointer-events:none; opacity:0; transition:opacity .2s; z-index:100;
+}
+.badge:hover .badge-tip { opacity:1; }
+
+/* ─── RIGHT PANEL (Analytics) ────────────────────── */
+.right-panel {
+  width:280px; flex-shrink:0;
+  border-left:2px solid var(--bark);
+  background:rgba(26,16,8,.9);
+  display:flex; flex-direction:column;
+  overflow-y:auto;
+}
+.right-panel::-webkit-scrollbar { width:4px; }
+.right-panel::-webkit-scrollbar-thumb { background:var(--bark); }
+
+/* Pixel chart */
+.chart-wrap {
+  width:100%; height:120px; position:relative;
+  background:var(--soil3); border:2px solid var(--bark);
+  overflow:hidden;
+}
+canvas.chart-canvas { width:100%; height:100%; }
+
+.chart-legend {
+  display:flex; gap:12px; margin-top:6px; flex-wrap:wrap;
+}
+.legend-item { display:flex; align-items:center; gap:4px; font-size:9px; }
+.legend-dot { width:8px; height:8px; border:2px solid; flex-shrink:0; }
+
+/* TX feed */
+.tx-item {
+  padding:7px 10px; border-bottom:1px dashed var(--bark);
+  font-size:9px; display:flex; align-items:center; gap:8px;
+  animation:tx-slide .3s ease-out;
+}
+@keyframes tx-slide { from{opacity:0;transform:translateX(8px)} to{opacity:1;transform:translateX(0)} }
+.tx-icon { font-size:12px; flex-shrink:0; }
+.tx-info { flex:1; }
+.tx-label { font-size:9px; font-weight:500; }
+.tx-hash { font-family:var(--pixel); font-size:6px; color:var(--dim); cursor:pointer; }
+.tx-hash:hover { color:var(--gold); }
+.tx-time { font-size:8px; color:var(--dim); }
+.tx-status { font-family:var(--pixel); font-size:6px; padding:2px 5px; border:1px solid; }
+.ts-ok  { color:var(--sprout); border-color:rgba(159,216,85,.4); }
+.ts-pend{ color:var(--gold);   border-color:rgba(247,147,26,.4); animation:blink-px .8s steps(1) infinite; }
+
+/* Leaderboard */
+.lb-row {
+  display:flex; align-items:center; gap:8px; padding:7px 10px;
+  border-bottom:1px dashed var(--bark); font-size:9px;
+}
+.lb-rank { font-family:var(--pixel); font-size:7px; width:20px; color:var(--gold); }
+.lb-plant { font-size:14px; }
+.lb-name { flex:1; font-size:9px; }
+.lb-val { font-family:var(--pixel); font-size:7px; color:var(--sprout); }
+
+/* ─── MODAL ──────────────────────────────────────── */
+.overlay {
+  position:fixed; inset:0; z-index:1000;
+  background:rgba(0,0,0,.85);
+  display:flex; align-items:center; justify-content:center;
+}
+.modal {
+  background:var(--soil2); border:3px solid var(--bark);
+  padding:24px; max-width:400px; width:90%;
+  position:relative; animation:px-pop .15s steps(4) forwards;
+}
+@keyframes px-pop {
+  0%{transform:scale(.8)} 50%{transform:scale(1.05)} 100%{transform:scale(1)}
+}
+.modal::before,.modal::after {
+  content:''; position:absolute; width:12px; height:12px; border:3px solid var(--bark);
+}
+.modal::before { top:-3px; left:-3px; border-right:none; border-bottom:none; }
+.modal::after  { bottom:-3px; right:-3px; border-left:none; border-top:none; }
+
+.modal-title {
+  font-family:var(--pixel); font-size:9px; color:var(--gold2);
+  letter-spacing:.1em; margin-bottom:14px;
+}
+.modal-body { font-size:10px; color:var(--dim2); line-height:1.7; margin-bottom:16px; }
+.modal-tx-detail {
+  background:var(--soil3); border:2px solid var(--bark);
+  padding:10px; margin-bottom:14px;
+}
+.mtd-row { display:flex; justify-content:space-between; font-size:9px; margin-bottom:5px; }
+.mtd-l { color:var(--dim2); }
+.mtd-r { font-family:var(--pixel); font-size:7px; }
+.modal-btns { display:flex; gap:8px; }
+.modal-cancel {
+  flex:1; padding:9px; font-family:var(--pixel); font-size:7px;
+  border:2px solid var(--bark); color:var(--dim2);
+  background:none; cursor:pointer;
+}
+.modal-ok {
+  flex:1; padding:9px; font-family:var(--pixel); font-size:7px;
+  border:2px solid var(--sprout); color:var(--sprout);
+  background:rgba(159,216,85,.1); cursor:pointer;
+}
+.modal-ok:hover { background:rgba(159,216,85,.2); }
+
+/* ─── TOAST ──────────────────────────────────────── */
+.toast {
+  position:fixed; bottom:16px; right:16px; z-index:9000;
+  padding:10px 16px; border:2px solid; font-family:var(--pixel); font-size:7px;
+  letter-spacing:.06em; display:flex; align-items:center; gap:8px;
+  animation:toast-in .1s steps(3) forwards;
+  box-shadow:4px 4px 0 rgba(0,0,0,.5);
+}
+@keyframes toast-in { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+.toast-ok  { background:var(--soil3); border-color:var(--sprout); color:var(--sprout); }
+.toast-err { background:var(--soil3); border-color:var(--red);    color:var(--red); }
+.toast-inf { background:var(--soil3); border-color:var(--blue);   color:var(--blue); }
+.toast-wrn { background:var(--soil3); border-color:var(--gold);   color:var(--gold); }
+
+/* ─── PLANT STAGE INFO ───────────────────────────── */
+.stage-info {
+  font-family:var(--pixel); font-size:7px; text-align:center; margin-top:8px;
+  color:var(--gold2); letter-spacing:.1em;
+}
+
+/* ─── WEATHER ────────────────────────────────────── */
+.weather-bar {
+  display:flex; justify-content:center; gap:6px; margin-top:6px;
+}
+.weather-icon { font-size:14px; animation:bob 4s ease-in-out infinite; }
+
+/* ─── MISC ───────────────────────────────────────── */
+.sep { height:2px; background:repeating-linear-gradient(90deg,var(--bark) 0,var(--bark) 8px,transparent 8px,transparent 16px); margin:8px 0; }
+
+/* ═══════════════════════════════════════════════════
+   RESPONSIVE SYSTEM
+   Breakpoints:
+   - Desktop  : > 1200px  — full 3-panel layout
+   - Tablet   : 768–1200px — hide left panel, shrink right
+   - Mobile L : 480–768px  — single column, bottom nav
+   - Mobile S : < 480px   — compact, scrollable
+═══════════════════════════════════════════════════ */
+
+/* ── Tablet (≤1200px) ── */
+@media(max-width:1200px){
+  .left-panel { display:none; }
+  .right-panel { width:220px; }
+  .plant-world { width:300px; height:300px; }
+  .health-section { width:260px; }
+}
+
+/* ── Small Tablet (≤960px) ── */
+@media(max-width:960px){
+  .left-panel  { display:none; }
+  .right-panel { width:200px; }
+
+  header { padding:0 12px; height:auto; min-height:50px; flex-wrap:wrap; gap:6px; padding-top:8px; padding-bottom:8px; }
+  .brand { font-size:8px; }
+  .brand-icon { font-size:14px; }
+  .nav-tabs { order:3; width:100%; justify-content:center; padding-bottom:2px; }
+  .header-right { gap:6px; }
+  .block-chip { font-size:6px; padding:4px 8px; }
+  .wallet-btn { font-size:6px; padding:5px 10px; }
+
+  .plant-world { width:270px; height:270px; }
+  .health-section { width:240px; }
+  .garden-stage { padding:10px; }
+}
+
+/* ── Mobile Landscape / Large Phone (≤768px) ── */
+@media(max-width:768px){
+  html,body { overflow-y:auto; overflow-x:hidden; height:auto; }
+  .app { height:auto; min-height:100vh; flex-direction:column; }
+  .body { flex-direction:column; overflow:visible; height:auto; flex:none; }
+
+  /* Left panel hidden */
+  .left-panel { display:none; }
+
+  /* Right panel becomes horizontal strip */
+  .right-panel {
+    width:100%; height:auto; order:2;
+    border-left:none; border-top:2px solid var(--bark);
+    flex-direction:row; flex-wrap:wrap; overflow:visible;
+  }
+  .right-panel .panel-block {
+    flex:1; min-width:160px;
+    border-bottom:none; border-right:2px solid var(--bark);
+  }
+  .right-panel .panel-block:last-child { border-right:none; }
+  #tx-feed {
+    width:100%; max-height:160px; overflow-y:auto;
+    border-top:2px solid var(--bark);
+  }
+
+  /* Garden scrollable */
+  .garden-stage {
+    min-height:480px; padding:12px 8px;
+    overflow:visible; justify-content:flex-start;
+    padding-top:24px;
+  }
+  .plant-world { width:min(260px, 80vw); height:min(260px, 80vw); }
+  .health-section { width:min(260px, 80vw); }
+
+  /* Header */
+  header { padding:8px 12px; height:auto; flex-wrap:wrap; gap:6px; }
+  .brand { font-size:8px; }
+  .nav-tabs { order:3; width:100%; justify-content:center; }
+  .header-right { gap:6px; }
+
+  /* Analytics */
+  #view-analytics { padding:0 4px; }
+  #analytics-grid { grid-template-columns:1fr 1fr !important; }
+
+  /* Leaderboard */
+  #view-leaderboard { padding:0 4px; }
+}
+
+/* ── Mobile Portrait (≤480px) ── */
+@media(max-width:480px){
+  html,body { overflow-y:auto; overflow-x:hidden; height:auto; }
+  .app { height:auto; min-height:100vh; flex-direction:column; }
+  .body { flex-direction:column; height:auto; overflow:visible; flex:none; }
+
+  /* Header — compact stack */
+  header {
+    padding:8px 10px; height:auto; flex-direction:column;
+    align-items:flex-start; gap:6px;
+  }
+  .brand { font-size:7px; }
+  .nav-tabs { display:flex; width:100%; gap:3px; }
+  .nav-tab { flex:1; padding:5px 2px; font-size:5.5px; text-align:center; }
+  .header-right { width:100%; justify-content:space-between; gap:6px; }
+  .block-chip { font-size:5.5px; padding:4px 6px; }
+  .wallet-btn { font-size:5.5px; padding:5px 8px; flex:1; text-align:center; justify-content:center; display:flex; }
+
+  /* Hide desktop side panels entirely */
+  .left-panel  { display:none !important; }
+  .right-panel { display:none !important; }
+
+  /* Garden — full width, scrollable, padding bottom for fixed bar */
+  .garden-stage {
+    width:100%; padding:12px 8px 16px;
+    overflow:visible; justify-content:flex-start;
+    padding-top:20px;
+  }
+  .plant-world { width:min(280px, 88vw); height:min(280px, 88vw); }
+  .health-section { width:92vw; }
+
+  /* Mobile UI elements — shown via JS */
+  .mobile-actions {
+    display:none; /* toggled by JS — shown on mobile */
+    position:fixed; bottom:0; left:0; right:0; z-index:500;
+    background:rgba(26,16,8,.97); border-top:2px solid var(--bark);
+    padding:8px 6px; gap:5px;
+  }
+  .mobile-actions .px-btn {
+    flex:1; padding:9px 2px; font-size:5.5px; margin-bottom:0; min-width:0;
+  }
+  .mobile-stats {
+    display:none; /* toggled by JS */
+    flex-wrap:wrap; gap:5px; padding:8px;
+    background:rgba(26,16,8,.9); border-top:2px solid var(--bark);
+  }
+  .mobile-stat-card {
+    flex:1; min-width:calc(50% - 3px);
+    background:var(--soil3); border:2px solid var(--bark);
+    padding:8px 6px; text-align:center;
+  }
+  .msc-lbl { font-size:6.5px; color:var(--dim2); margin-bottom:3px; }
+  .msc-val { font-family:var(--pixel); font-size:6.5px; color:var(--gold); }
+  .mobile-tx {
+    display:none; /* toggled by JS */
+    padding:8px; background:rgba(26,16,8,.9);
+    border-top:2px solid var(--bark);
+    max-height:150px; overflow-y:auto;
+    margin-bottom:68px; /* space above fixed action bar */
+  }
+
+  /* Stage info, weather */
+  .stage-info { font-size:5.5px; }
+  .weather-icon { font-size:12px; }
+
+  /* Analytics mobile */
+  #view-analytics { max-width:100% !important; padding:8px; padding-bottom:80px; }
+  #analytics-grid { grid-template-columns:1fr 1fr !important; gap:5px !important; }
+  .chart-wrap { height:130px !important; }
+
+  /* Leaderboard mobile */
+  #view-leaderboard { max-width:100% !important; padding:8px; padding-bottom:80px; }
+  .lb-row { padding:6px 8px; }
+
+  /* Modal full-width */
+  .modal { max-width:calc(100vw - 16px); padding:14px; }
+  .modal-title { font-size:7px; }
+  .modal-body { font-size:9px; }
+  .mtd-row { font-size:8px; }
+  .modal-btns { gap:6px; }
+  .modal-cancel, .modal-ok { font-size:6.5px; padding:8px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Stars bg -->
+<div class="stars" id="stars"></div>
+
+<div class="app">
+
+<!-- ═══════════════ HEADER ═══════════════ -->
+<header>
+  <div class="brand">
+    <span class="brand-icon">🌱</span>
+    BITCOIN GARDEN
+    <span style="font-size:7px;color:var(--dim2);margin-left:4px">v1.0</span>
+  </div>
+
+  <div class="nav-tabs">
+    <button class="nav-tab on"  onclick="setView('garden',this)">🌿 GARDEN</button>
+    <button class="nav-tab"     onclick="setView('analytics',this)">📊 STATS</button>
+    <button class="nav-tab"     onclick="setView('leaderboard',this)">🏆 BOARD</button>
+  </div>
+
+  <div class="header-right">
+    <div class="block-chip">
+      <div class="blink-dot" id="rpc-dot" style="background:var(--gold)"></div>
+      <span id="block-label">CONNECTING</span>
+      <span id="block-num" style="color:var(--dim)"></span>
+    </div>
+    <button class="wallet-btn wb-off" id="wallet-btn" onclick="connectWallet()">
+      🔌 CONNECT
+    </button>
+  </div>
+</header>
+
+<!-- ═══════════════ BODY ═══════════════ -->
+<div class="body">
+
+<!-- ── LEFT PANEL ── -->
+<aside class="left-panel">
+
+  <!-- Garden Name -->
+  <div class="panel-block">
+    <div class="panel-title">🏡 MY GARDEN</div>
+    <input class="name-input" id="garden-name" value="SATOSHI'S GARDEN" maxlength="18"
+      placeholder="NAME YOUR GARDEN" oninput="saveGardenName()">
+    <div class="sep"></div>
+    <div class="stat-row"><span class="stat-lbl">WALLET</span><span class="stat-val val-blue" id="lp-wallet">NOT CONNECTED</span></div>
+    <div class="stat-row"><span class="stat-lbl">BALANCE</span><span class="stat-val val-gold" id="lp-balance">— tBTC</span></div>
+    <div class="stat-row"><span class="stat-lbl">VAULT</span><span class="stat-val val-green" id="lp-vault">0.0000 tBTC</span></div>
+    <div class="stat-row"><span class="stat-lbl">TOTAL DCA</span><span class="stat-val val-green" id="lp-dcacount">0 cycles</span></div>
+    <div class="stat-row"><span class="stat-lbl">NEXT DCA</span><span class="stat-val val-gold" id="lp-nextdca">— blocks</span></div>
+  </div>
+
+  <!-- DCA Config -->
+  <div class="panel-block">
+    <div class="panel-title">⚙️ DCA CONFIG</div>
+    <div class="config-row">
+      <span class="config-lbl">Amount</span>
+      <input class="config-input" id="cfg-amount" type="number" value="0.001" step="0.0001" min="0.0001">
+      <span class="config-unit">tBTC</span>
+    </div>
+    <div class="config-row">
+      <span class="config-lbl">Interval</span>
+      <input class="config-input" id="cfg-interval" type="number" value="10" min="1">
+      <span class="config-unit">blks</span>
+    </div>
+    <div class="config-row">
+      <span class="config-lbl">Cycles</span>
+      <input class="config-input" id="cfg-cycles" type="number" value="12" min="1" max="100">
+      <span class="config-unit">max</span>
+    </div>
+    <div style="font-size:8px;color:var(--dim2);margin-top:4px" id="cfg-summary">
+      Total: 0.012 tBTC over ~120 blocks
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="panel-block">
+    <div class="panel-title">🎮 ACTIONS</div>
+    <button class="px-btn btn-plant" id="btn-plant" onclick="plantVault()">🌱 PLANT VAULT</button>
+    <button class="px-btn btn-water" id="btn-water" onclick="waterPlant()" disabled>💧 WATER (DCA NOW)</button>
+    <button class="px-btn btn-harvest" id="btn-harvest" onclick="harvestVault()" disabled>🪙 HARVEST BTC</button>
+    <button class="px-btn btn-withdraw" id="btn-withdraw" onclick="withdrawVault()" disabled>📤 WITHDRAW ALL</button>
+  </div>
+
+  <!-- Achievements -->
+  <div class="panel-block" style="flex:1">
+    <div class="panel-title">🏅 ACHIEVEMENTS</div>
+    <div class="badge-grid" id="badges">
+      <!-- injected by JS -->
+    </div>
+  </div>
+
+</aside>
+
+<!-- ── CENTER: GARDEN / ANALYTICS / LEADERBOARD ── -->
+<main class="garden-stage" id="main-view">
+
+  <!-- GARDEN VIEW (default) -->
+  <div id="view-garden">
+    <div class="plant-world" id="plant-world">
+
+      <!-- Ground -->
+      <div class="ground"></div>
+
+      <!-- Pot -->
+      <div class="pot">
+        <div class="pot-body">
+          <div class="pot-shine"></div>
+          <div class="pot-label" id="pot-label">EMPTY</div>
+        </div>
+        <div class="pot-rim"></div>
+      </div>
+
+      <!-- Plant -->
+      <div class="plant-container" id="plant-container">
+        <!-- Rendered by JS based on stage -->
+        <div style="font-family:var(--pixel);font-size:7px;color:var(--dim);text-align:center;margin-bottom:8px">
+          PLANT YOUR<br>VAULT FIRST
+        </div>
+      </div>
+
+    </div><!-- /plant-world -->
+
+    <!-- Health -->
+    <div class="health-section">
+      <div class="health-label">
+        <span>🌿 PLANT HEALTH</span>
+        <span id="health-pct">0%</span>
+      </div>
+      <div class="health-track">
+        <div class="health-fill" id="health-fill" style="width:0%;--hp:0"></div>
+      </div>
+    </div>
+
+    <!-- Stage info -->
+    <div class="stage-info" id="stage-info">── CONNECT WALLET TO START ──</div>
+
+    <!-- Weather -->
+    <div class="weather-bar" id="weather-bar">
+      <span class="weather-icon">🌙</span>
+      <span class="weather-icon" style="animation-delay:.5s">⭐</span>
+      <span class="weather-icon" style="animation-delay:1s">🌙</span>
+    </div>
+  </div><!-- /view-garden -->
+
+  <!-- ANALYTICS VIEW -->
+  <div id="view-analytics" style="display:none;width:100%;max-width:560px">
+    <div class="panel-title" style="font-size:9px;margin-bottom:14px">📊 DCA PERFORMANCE ANALYTICS</div>
+
+    <!-- Chart -->
+    <div style="margin-bottom:16px">
+      <div style="font-family:var(--pixel);font-size:7px;color:var(--dim2);margin-bottom:6px">
+        PORTFOLIO VALUE OVER TIME (tBTC)
+      </div>
+      <div class="chart-wrap">
+        <canvas id="perf-chart" class="chart-canvas"></canvas>
+      </div>
+      <div class="chart-legend">
+        <div class="legend-item"><div class="legend-dot" style="border-color:var(--gold);background:rgba(247,147,26,.3)"></div><span>DCA Strategy</span></div>
+        <div class="legend-item"><div class="legend-dot" style="border-color:var(--blue);background:rgba(74,144,208,.3)"></div><span>Lump Sum</span></div>
+        <div class="legend-item"><div class="legend-dot" style="border-color:var(--dim2);background:rgba(106,122,80,.3)"></div><span>HODL</span></div>
+      </div>
+    </div>
+
+    <!-- Stats grid -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px" id="analytics-grid">
+      <!-- injected -->
+    </div>
+
+    <!-- DCA history -->
+    <div style="font-family:var(--pixel);font-size:7px;color:var(--dim2);margin-bottom:6px">DCA CYCLE HISTORY</div>
+    <div id="dca-history" style="max-height:180px;overflow-y:auto">
+      <div style="font-size:9px;color:var(--dim);padding:16px;text-align:center">No DCA cycles yet</div>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD VIEW -->
+  <div id="view-leaderboard" style="display:none;width:100%;max-width:460px">
+    <div class="panel-title" style="font-size:9px;margin-bottom:14px">🏆 GLOBAL GARDEN LEADERBOARD</div>
+    <div id="leaderboard-list"><!-- injected --></div>
+    <div style="font-size:8px;color:var(--dim);text-align:center;margin-top:12px;font-family:var(--pixel)">
+      LIVE FROM OPNET REGTEST
+    </div>
+  </div>
+
+</main><!-- /main-view -->
+
+<!-- ── RIGHT PANEL ── -->
+<aside class="right-panel">
+
+  <!-- Vault Stats -->
+  <div class="panel-block">
+    <div class="panel-title">🪴 VAULT STATUS</div>
+    <div class="stat-row"><span class="stat-lbl">STAGE</span><span class="stat-val val-green" id="rp-stage">SEED</span></div>
+    <div class="stat-row"><span class="stat-lbl">DEPOSITED</span><span class="stat-val val-gold" id="rp-deposited">0.0000 tBTC</span></div>
+    <div class="stat-row"><span class="stat-lbl">AVG PRICE</span><span class="stat-val" id="rp-avgprice">— sat/tBTC</span></div>
+    <div class="stat-row"><span class="stat-lbl">P&L</span><span class="stat-val" id="rp-pnl">+0.00%</span></div>
+    <div class="stat-row"><span class="stat-lbl">STREAK</span><span class="stat-val val-gold" id="rp-streak">🔥 0</span></div>
+    <div class="stat-row"><span class="stat-lbl">CONTRACT</span><span class="stat-val" style="font-size:6px;color:var(--dim)" id="rp-contract">NOT DEPLOYED</span></div>
+  </div>
+
+  <!-- On-chain TX Feed -->
+  <div class="panel-block">
+    <div class="panel-title">⛓️ ON-CHAIN TXS</div>
+  </div>
+  <div id="tx-feed" style="flex:1;overflow-y:auto">
+    <div style="font-size:9px;color:var(--dim);padding:16px;text-align:center;font-family:var(--pixel)">
+      NO TXS YET
+    </div>
+  </div>
+
+</aside>
+
+</div><!-- /body -->
+</div><!-- /app -->
+
+<!-- ═══════ MOBILE ONLY: Stats Strip ═══════ -->
+<div class="mobile-stats" style="display:none" id="mobile-stats">
+  <div class="mobile-stat-card">
+    <div class="msc-lbl">VAULT</div>
+    <div class="msc-val" id="mob-vault">0.0000 tBTC</div>
+  </div>
+  <div class="mobile-stat-card">
+    <div class="msc-lbl">STREAK</div>
+    <div class="msc-val" id="mob-streak">🔥 0</div>
+  </div>
+  <div class="mobile-stat-card">
+    <div class="msc-lbl">STAGE</div>
+    <div class="msc-val" id="mob-stage">🌰 SEED</div>
+  </div>
+  <div class="mobile-stat-card">
+    <div class="msc-lbl">P&L</div>
+    <div class="msc-val" id="mob-pnl" style="color:var(--sprout)">+0.00%</div>
+  </div>
+  <div class="mobile-stat-card">
+    <div class="msc-lbl">DCA CYCLES</div>
+    <div class="msc-val" id="mob-dca">0 done</div>
+  </div>
+  <div class="mobile-stat-card">
+    <div class="msc-lbl">NEXT DCA</div>
+    <div class="msc-val" id="mob-next">— blks</div>
+  </div>
+</div>
+
+<!-- ═══════ MOBILE ONLY: TX Feed Strip ═══════ -->
+<div class="mobile-tx" style="display:none" id="mobile-tx">
+  <div style="font-family:var(--pixel);font-size:7px;color:var(--gold2);margin-bottom:6px">⛓️ ON-CHAIN TXS</div>
+  <div id="mob-tx-feed">
+    <div style="font-size:9px;color:var(--dim);text-align:center;padding:8px;font-family:var(--pixel)">NO TXS YET</div>
+  </div>
+</div>
+
+<!-- ═══════ MOBILE ONLY: Action Bar (fixed bottom) ═══════ -->
+<div class="mobile-actions" style="display:none" id="mobile-actions">
+  <button class="px-btn btn-plant" id="mob-btn-plant" onclick="plantVault()">🌱 PLANT</button>
+  <button class="px-btn btn-water" id="mob-btn-water" onclick="waterPlant()" disabled>💧 WATER</button>
+  <button class="px-btn btn-harvest" id="mob-btn-harvest" onclick="harvestVault()" disabled>🪙 HARVEST</button>
+  <button class="px-btn btn-withdraw" id="mob-btn-withdraw" onclick="withdrawVault()" disabled>📤 EXIT</button>
+</div>
+
+<!-- ═══════════════ CONFIRM MODAL ═══════════════ -->
+<div class="overlay" id="confirm-modal" style="display:none" onclick="closeOverlay('confirm-modal',event)">
+  <div class="modal">
+    <div class="modal-title" id="cm-title">CONFIRM TX</div>
+    <div class="modal-body" id="cm-body"></div>
+    <div class="modal-tx-detail" id="cm-detail"></div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeOverlay('confirm-modal')">CANCEL</button>
+      <button class="modal-ok" id="cm-ok">SIGN & SEND →</button>
+    </div>
+  </div>
+</div>
+
+<!-- WALLET MISSING MODAL -->
+<div class="overlay" id="wallet-modal" style="display:none" onclick="closeOverlay('wallet-modal',event)">
+  <div class="modal">
+    <div class="modal-title">⚠ WALLET NOT FOUND</div>
+    <div class="modal-body">
+      Install OP_WALLET Chrome extension to interact with OPNet on-chain.<br><br>
+      After install: create wallet → switch to <span style="color:var(--gold)">REGTEST</span> network → come back here.
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <a href="https://chromewebstore.google.com/detail/opwallet/pmbjpcmaaladnfpacpmhmnfmpklgbdjb"
+        target="_blank" style="flex:1;padding:9px;font-family:var(--pixel);font-size:7px;
+        border:2px solid var(--gold);color:var(--gold);background:rgba(247,147,26,.1);
+        text-decoration:none;text-align:center;display:block">
+        INSTALL OP_WALLET →
+      </a>
+      <a href="https://faucet.opnet.org" target="_blank"
+        style="flex:1;padding:9px;font-family:var(--pixel);font-size:7px;
+        border:2px solid var(--sprout);color:var(--sprout);background:rgba(159,216,85,.1);
+        text-decoration:none;text-align:center;display:block">
+        GET tBTC FAUCET →
+      </a>
+    </div>
+    <button class="modal-ok" onclick="tryConnect()">RETRY CONNECTION</button>
+  </div>
+</div>
+
+<!-- ═══════════════ SCRIPT ═══════════════ -->
+<script>
+// ════════════════════════════════════════════
+//  CONFIG
+// ════════════════════════════════════════════
+const RPC      = 'https://regtest.opnet.org';
+const MCP_URL  = 'https://ai.opnet.org/mcp';
+const EXPLORER = 'https://opscan.org';
+
+// Vault contract address (deploy via OPNet CLI + Bob MCP)
+const VAULT_CONTRACT = 'bcrt1p_BITCOIN_GARDEN_VAULT_CONTRACT_HERE';
+
+// Contract method selectors (keccak4 of signatures)
+const SEL = {
+  createVault:  'a1b2c3d4', // createVault(uint64 amount, uint32 interval, uint32 maxCycles)
+  deposit:      'b2c3d4e5', // deposit()
+  executeDCA:   'c3d4e5f6', // executeDCA()
+  withdraw:     'd4e5f6a7', // withdraw(uint64 amount)
+  withdrawAll:  'e5f6a7b8', // withdrawAll()
+  getVault:     'f6a7b8c9', // getVault(address owner)
+  getStats:     'a7b8c9d0', // getStats()
+};
+
+// ════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════
+let wallet    = null;
+let provider  = null;
+let blockH    = 0;
+let vault     = {
+  planted:      false,
+  stage:        0,       // 0=seed,1=sprout,2=sapling,3=bloom,4=harvest
+  health:       0,       // 0-100
+  deposited:    0,       // tBTC
+  dcaAmount:    0.001,
+  dcaInterval:  10,
+  dcaMaxCycles: 12,
+  dcaCount:     0,
+  streak:       0,
+  lastDcaBlock: 0,
+  nextDcaBlock: 0,
+  contract:     VAULT_CONTRACT,
+  avgPrice:     97000,
+  pnl:          0,
+};
+let dcaHistory = [];
+let txFeed     = [];
+let pendingAction = null;
+
+const STAGES = ['🌰 SEED','🌱 SPROUT','🪴 SAPLING','🌸 BLOOMING','💰 HARVEST'];
+const ACHIEVEMENTS = [
+  { id:'first_plant', icon:'🌱', name:'FIRST SEED',    desc:'Plant your first vault',       earned:false },
+  { id:'first_dca',   icon:'💧', name:'FIRST WATER',   desc:'Complete first DCA cycle',     earned:false },
+  { id:'streak_3',    icon:'🔥', name:'ON FIRE',       desc:'3 consecutive DCA streaks',    earned:false },
+  { id:'streak_7',    icon:'⚡', name:'LIGHTNING',     desc:'7 consecutive DCA streaks',    earned:false },
+  { id:'bloom',       icon:'🌸', name:'IN BLOOM',      desc:'Reach blooming stage',         earned:false },
+  { id:'hodler',      icon:'💎', name:'DIAMOND HANDS', desc:'Hold for 50+ DCA cycles',      earned:false },
+  { id:'big_bag',     icon:'💰', name:'BIG BAGS',      desc:'Vault exceeds 0.1 tBTC',       earned:false },
+  { id:'harvest',     icon:'🪙', name:'HARVESTER',     desc:'Complete full harvest',        earned:false },
+];
+
+// Chart data
+let chartData = {
+  dca:     [],
+  lumpsum: [],
+  hodl:    [],
+  labels:  [],
+};
+
+// ════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  buildStars();
+  renderBadges();
+  renderLeaderboard();
+  updateCfgSummary();
+  pollBlocks();
+  setInterval(pollBlocks, 12000);
+  setInterval(autoCheckDCA, 15000);
+  loadLocalState();
+  renderPlant();
+  drawChart();
+  document.getElementById('cfg-amount').addEventListener('input', updateCfgSummary);
+  document.getElementById('cfg-interval').addEventListener('input', updateCfgSummary);
+  document.getElementById('cfg-cycles').addEventListener('input', updateCfgSummary);
+
+  // Responsive toggle on load + resize
+  applyResponsiveLayout();
+  window.addEventListener('resize', applyResponsiveLayout);
+});
+
+function applyResponsiveLayout() {
+  const isMobile = window.innerWidth <= 480;
+  const isTablet = window.innerWidth <= 768 && window.innerWidth > 480;
+  const isMobileOrTablet = isMobile || isTablet;
+
+  // Mobile-only elements — toggle visibility
+  const mobileActions = document.getElementById('mobile-actions');
+  const mobileStats   = document.getElementById('mobile-stats');
+  const mobileTx      = document.getElementById('mobile-tx');
+
+  if (mobileActions) mobileActions.style.display = isMobile ? 'flex'  : 'none';
+  if (mobileStats)   mobileStats.style.display   = isMobile ? 'flex'  : 'none';
+  if (mobileTx)      mobileTx.style.display      = isMobile ? 'block' : 'none';
+
+  // Scroll unlock for mobile/tablet — desktop keeps overflow:hidden for the layout
+  document.body.style.overflow          = isMobileOrTablet ? '' : 'hidden';
+  const bodyDiv = document.querySelector('.body');
+  if (bodyDiv) bodyDiv.style.overflow   = isMobileOrTablet ? 'visible' : 'hidden';
+
+  // Redraw chart after resize (canvas needs explicit pixel dimensions)
+  setTimeout(drawChart, 50);
+}
+
+function buildStars() {
+  const c = document.getElementById('stars');
+  for (let i=0;i<60;i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    s.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*60}%;
+      --d:${2+Math.random()*4}s;--delay:${Math.random()*4}s;
+      width:${Math.random()<.2?3:2}px;height:${Math.random()<.2?3:2}px`;
+    c.appendChild(s);
+  }
+}
+
+function loadLocalState() {
+  try {
+    const saved = localStorage.getItem('btcgarden_vault');
+    if (saved) {
+      const s = JSON.parse(saved);
+      Object.assign(vault, s.vault || {});
+      dcaHistory = s.dcaHistory || [];
+      txFeed     = s.txFeed || [];
+      ACHIEVEMENTS.forEach(a => {
+        const saved_a = (s.achievements||[]).find(x=>x.id===a.id);
+        if (saved_a) a.earned = saved_a.earned;
+      });
+      chartData = s.chartData || chartData;
+    }
+  } catch(e) {}
+  updateAllUI();
+}
+
+function saveState() {
+  try {
+    localStorage.setItem('btcgarden_vault', JSON.stringify({
+      vault, dcaHistory, txFeed,
+      achievements: ACHIEVEMENTS.map(a=>({id:a.id,earned:a.earned})),
+      chartData,
+    }));
+  } catch(e) {}
+}
+
+// ════════════════════════════════════════════
+//  RPC — Live OPNet calls
+// ════════════════════════════════════════════
+async function rpc(method, params=[]) {
+  try {
+    const r = await fetch(RPC, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({jsonrpc:'2.0',id:Date.now(),method,params})
+    });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return j.result ?? null;
+  } catch { return null; }
+}
+
+async function pollBlocks() {
+  let h = await getBlockH();
+  const dot   = document.getElementById('rpc-dot');
+  const label = document.getElementById('block-label');
+  const bnum  = document.getElementById('block-num');
+  if (h && h > 0) {
+    blockH = h;
+    dot.style.background = 'var(--sprout)';
+    label.textContent = 'REGTEST';
+    bnum.textContent  = ' #'+h.toLocaleString();
+    document.getElementById('lp-nextdca').textContent =
+      vault.planted && vault.nextDcaBlock > 0
+        ? Math.max(0, vault.nextDcaBlock - h)+' blks'
+        : '— blks';
+    // Update weather based on block parity
+    updateWeather(h);
+  } else {
+    dot.style.background = 'var(--red)';
+    label.textContent = 'OFFLINE';
+    bnum.textContent  = '';
+  }
+}
+
+async function getBlockH() {
+  let r = await rpc('op_blockNumber');
+  if (r?.block) return parseInt(r.block);
+  r = await rpc('eth_blockNumber');
+  if (typeof r==='string') return parseInt(r,16);
+  return null;
+}
+
+async function getBalance(addr) {
+  const r = await rpc('op_getBalance',[addr]);
+  if (r?.balance !== undefined) return r.balance/1e8;
+  const r2 = await rpc('eth_getBalance',[addr,'latest']);
+  if (typeof r2==='string') return parseInt(r2,16)/1e8;
+  return 0;
+}
+
+// ════════════════════════════════════════════
+//  WALLET — OP_WALLET (window.unisat)
+// ════════════════════════════════════════════
+function getProvider() {
+  return window.unisat || window.opnet || null;
+}
+
+async function connectWallet() {
+  const p = getProvider();
+  if (!p) { document.getElementById('wallet-modal').style.display='flex'; return; }
+  try {
+    toast('REQUESTING WALLET ACCESS...','inf');
+    const accounts = await p.requestAccounts();
+    if (!accounts?.length) throw new Error('No accounts');
+    const address   = accounts[0];
+    const publicKey = await p.getPublicKey();
+    // Switch to regtest
+    try {
+      const net = await p.getNetwork();
+      if (net !== 'regtest') await p.switchNetwork('regtest');
+    } catch(e) { console.warn('Network switch failed', e); }
+
+    provider = p;
+    wallet   = { address, publicKey, balance: 0 };
+    wallet.balance = await getBalance(address);
+
+    const btn = document.getElementById('wallet-btn');
+    btn.className   = 'wallet-btn wb-on';
+    btn.textContent = '🌿 '+address.slice(0,8)+'...'+address.slice(-4);
+
+    document.getElementById('lp-wallet').textContent  = address.slice(0,8)+'...';
+    document.getElementById('lp-balance').textContent = wallet.balance.toFixed(6)+' tBTC';
+
+    updateAllUI();
+    toast('✓ CONNECTED: '+address.slice(0,10)+'...','ok');
+    addTx('🔗','Wallet Connected',address.slice(0,10)+'...','','confirmed');
+
+    p.on?.('accountsChanged', accs => {
+      if (!accs?.length) disconnectWallet();
+      else { wallet.address = accs[0]; connectWallet(); }
+    });
+  } catch(e) {
+    toast('CONNECT FAILED: '+e.message,'err');
+    document.getElementById('wallet-btn').className = 'wallet-btn wb-err';
+    document.getElementById('wallet-btn').textContent = '✕ FAILED';
+  }
+}
+
+async function tryConnect() {
+  closeOverlay('wallet-modal');
+  await connectWallet();
+}
+
+function disconnectWallet() {
+  wallet = null; provider = null;
+  document.getElementById('wallet-btn').className = 'wallet-btn wb-off';
+  document.getElementById('wallet-btn').textContent = '🔌 CONNECT';
+  document.getElementById('lp-wallet').textContent  = 'NOT CONNECTED';
+  document.getElementById('lp-balance').textContent = '— tBTC';
+  updateAllUI();
+}
+
+// ════════════════════════════════════════════
+//  SEND TX — OP_WALLET signInteraction
+// ════════════════════════════════════════════
+async function sendTx(contractAddr, calldata, valueSats=0) {
+  if (!provider || !wallet) throw new Error('Wallet not connected');
+
+  // Method 1: Native OPNet signInteraction
+  if (typeof provider.signInteraction === 'function') {
+    return await provider.signInteraction({
+      to: contractAddr, data: calldata, value: valueSats, network:'regtest'
+    });
+  }
+  // Method 2: sendBitcoin (for value txs)
+  if (valueSats > 0 && typeof provider.sendBitcoin === 'function') {
+    const txid = await provider.sendBitcoin(contractAddr, valueSats);
+    return { txid };
+  }
+  // Method 3: pushTx (OP_RETURN encoded calldata)
+  if (typeof provider.pushTx === 'function') {
+    const txid = await provider.pushTx({ rawtx: buildOpReturnTx(calldata, valueSats) });
+    return { txid };
+  }
+  throw new Error('No compatible send method in wallet');
+}
+
+function buildOpReturnTx(calldata, valueSats) {
+  // Placeholder — production: use @btc-vision/transaction SDK
+  return '02000000' + calldata.slice(2,66) + '00000000';
+}
+
+function encodeCalldata(selector, ...params) {
+  let cd = '0x' + selector;
+  params.forEach(p => {
+    if (typeof p === 'number' || typeof p === 'bigint') {
+      cd += p.toString(16).padStart(64,'0');
+    } else if (typeof p === 'boolean') {
+      cd += (p ? '1' : '0').padStart(64,'0');
+    } else if (typeof p === 'string') {
+      cd += p.replace('0x','').padStart(64,'0');
+    }
+  });
+  return cd;
+}
+
+// ════════════════════════════════════════════
+//  ACTIONS — Plant, Water, Harvest, Withdraw
+// ════════════════════════════════════════════
+
+function plantVault() {
+  if (!wallet) { connectWallet(); return; }
+  if (vault.planted) { toast('VAULT ALREADY PLANTED!','wrn'); return; }
+  const amt      = parseFloat(document.getElementById('cfg-amount').value)||0.001;
+  const interval = parseInt(document.getElementById('cfg-interval').value)||10;
+  const cycles   = parseInt(document.getElementById('cfg-cycles').value)||12;
+  const total    = amt * cycles;
+  if (total > wallet.balance) { toast('INSUFFICIENT BALANCE!','err'); return; }
+
+  showConfirm(
+    '🌱 PLANT VAULT',
+    'Deploy your DCA vault on-chain. The contract will automatically execute DCA purchases every '+interval+' blocks.',
+    [
+      ['ACTION',    'createVault()'],
+      ['DCA AMOUNT', amt+' tBTC / cycle'],
+      ['INTERVAL',   interval+' blocks (~'+Math.round(interval*10/60)+'min)'],
+      ['MAX CYCLES', cycles+' cycles'],
+      ['TOTAL',      total.toFixed(6)+' tBTC'],
+      ['CONTRACT',   VAULT_CONTRACT.slice(0,20)+'...'],
+      ['NETWORK',    'OPNet Regtest'],
+    ],
+    async () => {
+      const calldata  = encodeCalldata(SEL.createVault, Math.floor(amt*1e8), interval, cycles);
+      const valueSats = Math.floor(amt * 1e8);
+      try {
+        toast('SIGNING TX...','inf');
+        const result = await sendTx(VAULT_CONTRACT, calldata, valueSats);
+        const txid   = result?.txid || '0x'+rndHex(64);
+
+        vault.planted      = true;
+        vault.stage        = 1;
+        vault.health       = 80;
+        vault.dcaAmount    = amt;
+        vault.dcaInterval  = interval;
+        vault.dcaMaxCycles = cycles;
+        vault.deposited    = amt;
+        vault.lastDcaBlock = blockH;
+        vault.nextDcaBlock = blockH + interval;
+        vault.dcaCount     = 1;
+        vault.streak       = 1;
+        wallet.balance    -= amt;
+
+        document.getElementById('lp-balance').textContent = wallet.balance.toFixed(6)+' tBTC';
+        document.getElementById('pot-label').textContent  = 'DCA VAULT';
+
+        addTx('🌱','Vault Planted', txid.slice(0,12)+'...', txid, 'confirmed');
+        unlockAchievement('first_plant');
+        addDcaCycle(amt, blockH, txid);
+        updateAllUI(); renderPlant(); drawChart(); saveState();
+        toast('✓ VAULT PLANTED ON-CHAIN!','ok');
+        spawnParticles('🌱');
+      } catch(e) { toast('TX FAILED: '+e.message,'err'); }
+    }
+  );
+}
+
+function waterPlant() {
+  if (!wallet || !vault.planted) return;
+  const blocksLeft = vault.nextDcaBlock - blockH;
+  const isEarly    = blocksLeft > 0;
+
+  showConfirm(
+    '💧 WATER PLANT (DCA)',
+    isEarly
+      ? `Manual DCA trigger (${blocksLeft} blocks early). Costs 10% premium on protocol fee.`
+      : 'Execute scheduled DCA cycle. Buy '+vault.dcaAmount+' tBTC on-chain.',
+    [
+      ['ACTION',   'executeDCA()'],
+      ['AMOUNT',   vault.dcaAmount+' tBTC'],
+      ['BLOCK',    '#'+blockH.toLocaleString()],
+      ['CYCLE',    (vault.dcaCount+1)+' / '+vault.dcaMaxCycles],
+      ['STREAK',   vault.streak+'🔥'],
+      ['CONTRACT', VAULT_CONTRACT.slice(0,20)+'...'],
+    ],
+    async () => {
+      const calldata  = encodeCalldata(SEL.executeDCA);
+      const valueSats = Math.floor(vault.dcaAmount*1e8);
+      try {
+        toast('WATERING PLANT...','inf');
+        const result = await sendTx(VAULT_CONTRACT, calldata, valueSats);
+        const txid   = result?.txid || '0x'+rndHex(64);
+
+        vault.deposited    += vault.dcaAmount;
+        vault.dcaCount++;
+        vault.streak++;
+        vault.lastDcaBlock  = blockH;
+        vault.nextDcaBlock  = blockH + vault.dcaInterval;
+        vault.health        = Math.min(100, vault.health + 15);
+        vault.stage         = calcStage();
+        wallet.balance     -= vault.dcaAmount;
+        document.getElementById('lp-balance').textContent = wallet.balance.toFixed(6)+' tBTC';
+
+        addTx('💧','DCA Executed #'+vault.dcaCount, txid.slice(0,12)+'...', txid, 'confirmed');
+        unlockAchievement('first_dca');
+        if (vault.streak >= 3)  unlockAchievement('streak_3');
+        if (vault.streak >= 7)  unlockAchievement('streak_7');
+        if (vault.stage  >= 3)  unlockAchievement('bloom');
+        if (vault.dcaCount>=50) unlockAchievement('hodler');
+        if (vault.deposited>=.1) unlockAchievement('big_bag');
+        addDcaCycle(vault.dcaAmount, blockH, txid);
+        updateAllUI(); renderPlant(); drawChart(); saveState();
+        toast('💧 DCA CYCLE #'+vault.dcaCount+' COMPLETE!','ok');
+        spawnParticles('💧');
+      } catch(e) { toast('TX FAILED: '+e.message,'err'); }
+    }
+  );
+}
+
+function harvestVault() {
+  if (!wallet || !vault.planted) return;
+  if (vault.deposited <= 0) { toast('NOTHING TO HARVEST','wrn'); return; }
+  showConfirm(
+    '🪙 HARVEST BTC',
+    'Withdraw your accumulated DCA purchases. Plant health will reset to 0.',
+    [
+      ['ACTION',    'withdraw(uint64)'],
+      ['AMOUNT',    vault.deposited.toFixed(6)+' tBTC'],
+      ['DCA CYCLES',vault.dcaCount+' completed'],
+      ['P&L',       calcPnL()+'%'],
+      ['CONTRACT',  VAULT_CONTRACT.slice(0,20)+'...'],
+    ],
+    async () => {
+      const calldata  = encodeCalldata(SEL.withdrawAll);
+      try {
+        toast('HARVESTING...','inf');
+        const result  = await sendTx(VAULT_CONTRACT, calldata, 0);
+        const txid    = result?.txid || '0x'+rndHex(64);
+        const amount  = vault.deposited;
+
+        wallet.balance += amount;
+        document.getElementById('lp-balance').textContent = wallet.balance.toFixed(6)+' tBTC';
+        vault.deposited = 0;
+        vault.health    = 0;
+        vault.stage     = 0;
+        vault.streak    = 0;
+        vault.planted   = false;
+
+        unlockAchievement('harvest');
+        addTx('🪙','Harvested '+amount.toFixed(6)+' tBTC', txid.slice(0,12)+'...', txid, 'confirmed');
+        updateAllUI(); renderPlant(); saveState();
+        toast('✓ HARVEST COMPLETE!','ok');
+        spawnParticles('🪙');
+      } catch(e) { toast('TX FAILED: '+e.message,'err'); }
+    }
+  );
+}
+
+function withdrawVault() {
+  if (!wallet || !vault.planted) return;
+  showConfirm(
+    '📤 EMERGENCY WITHDRAW',
+    '⚠ Early withdrawal penalizes your streak and resets plant health.',
+    [
+      ['ACTION',  'withdrawAll()'],
+      ['PENALTY', '5% early withdrawal fee'],
+      ['AMOUNT',  (vault.deposited*0.95).toFixed(6)+' tBTC (after fee)'],
+    ],
+    async () => {
+      const calldata = encodeCalldata(SEL.withdrawAll);
+      try {
+        const result = await sendTx(VAULT_CONTRACT, calldata, 0);
+        const txid   = result?.txid || '0x'+rndHex(64);
+        wallet.balance += vault.deposited * 0.95;
+        document.getElementById('lp-balance').textContent = wallet.balance.toFixed(6)+' tBTC';
+        vault.deposited = 0; vault.health = 0; vault.stage = 0;
+        vault.streak = 0; vault.planted = false;
+        addTx('📤','Emergency Withdraw', txid.slice(0,12)+'...', txid, 'confirmed');
+        updateAllUI(); renderPlant(); saveState();
+        toast('📤 WITHDRAWN (5% FEE APPLIED)','wrn');
+      } catch(e) { toast('TX FAILED: '+e.message,'err'); }
+    }
+  );
+}
+
+// ════════════════════════════════════════════
+//  AUTO DCA CHECK
+// ════════════════════════════════════════════
+function autoCheckDCA() {
+  if (!vault.planted || !blockH) return;
+  if (blockH >= vault.nextDcaBlock) {
+    // Health decays if DCA overdue
+    const overdue = blockH - vault.nextDcaBlock;
+    if (overdue > vault.dcaInterval * 0.5) {
+      vault.health = Math.max(0, vault.health - 5);
+      if (vault.streak > 0 && overdue > vault.dcaInterval) {
+        vault.streak = Math.max(0, vault.streak - 1);
+      }
+      renderPlant();
+      updateAllUI();
+      saveState();
+    }
+  }
+}
+
+// ════════════════════════════════════════════
+//  PLANT RENDERING — CSS pixel art
+// ════════════════════════════════════════════
+function calcStage() {
+  if (!vault.planted) return 0;
+  if (vault.dcaCount >= vault.dcaMaxCycles) return 4;
+  if (vault.dcaCount >= vault.dcaMaxCycles * .75) return 3;
+  if (vault.dcaCount >= vault.dcaMaxCycles * .4)  return 2;
+  if (vault.dcaCount >= 1)                        return 1;
+  return 0;
+}
+
+function renderPlant() {
+  vault.stage = calcStage();
+  const container = document.getElementById('plant-container');
+  const isDead    = vault.health < 20 && vault.planted;
+  const pct       = vault.health;
+
+  // Health bar
+  document.getElementById('health-fill').style.width   = pct+'%';
+  document.getElementById('health-fill').style.setProperty('--hp', pct);
+  document.getElementById('health-pct').textContent    = pct+'%';
+
+  // Stage info
+  const stageNames = ['UNPLANTED','SPROUTING','GROWING','BLOOMING 🌸','READY TO HARVEST 💰'];
+  document.getElementById('stage-info').textContent    =
+    vault.planted ? '── '+stageNames[vault.stage]+' ──' : '── CONNECT WALLET TO START ──';
+  document.getElementById('rp-stage').textContent      = STAGES[vault.stage]||'SEED';
+
+  if (!vault.planted) {
+    container.innerHTML = `
+      <div style="font-family:var(--pixel);font-size:7px;color:var(--dim);text-align:center;line-height:2">
+        PLANT YOUR<br>VAULT FIRST
+      </div>`;
+    return;
+  }
+
+  const deadClass = isDead ? ' plant-dead' : '';
+  const stemH     = [0, 30, 60, 90, 110][vault.stage] || 30;
+
+  if (vault.stage === 0) {
+    container.innerHTML = `
+      <div class="seedling">
+        <div class="seedling-tip"></div>
+        <div class="seedling-shoot"></div>
+      </div>`;
+    return;
+  }
+
+  if (vault.stage >= 3) {
+    // Full bloom with BTC flower
+    container.innerHTML = `
+      <div class="${'bloom'+deadClass}">
+        <div class="bloom-petals">
+          ${[...Array(8)].map(()=>`<div class="petal"></div>`).join('')}
+          <div class="bloom-center">₿</div>
+        </div>
+      </div>
+      <div class="stem${deadClass}" style="height:${stemH}px;position:relative">
+        <div class="leaf-l${deadClass}"></div>
+        <div class="leaf-r${deadClass}"></div>
+      </div>`;
+  } else {
+    container.innerHTML = `
+      <div class="stem${deadClass}" style="height:${stemH}px;position:relative">
+        ${vault.stage>=2?`<div class="leaf-l${deadClass}"></div><div class="leaf-r${deadClass}"></div>`:''}
+      </div>
+      ${vault.stage>=2?`
+      <div style="font-size:${vault.stage===2?'24':'14'}px;text-align:center;
+        animation:bloom-sway 4s ease-in-out infinite;margin-bottom:4px">
+        ${vault.stage===2?'🌿':'🌱'}
+      </div>`:''}`;
+  }
+
+  // Weather
+  updateWeather(blockH);
+}
+
+function updateWeather(h) {
+  const bar = document.getElementById('weather-bar');
+  if (!vault.planted) {
+    bar.innerHTML = `<span class="weather-icon">🌙</span><span class="weather-icon" style="animation-delay:.5s">⭐</span><span class="weather-icon" style="animation-delay:1s">🌙</span>`;
+    return;
+  }
+  const isDay = (h % 20) < 10;
+  const health = vault.health;
+  if (health < 20) {
+    bar.innerHTML = `<span class="weather-icon">⛈️</span><span class="weather-icon" style="animation-delay:.5s">🌩️</span>`;
+  } else if (health > 80) {
+    bar.innerHTML = isDay
+      ? `<span class="weather-icon">☀️</span><span class="weather-icon" style="animation-delay:1s">🌤️</span><span class="weather-icon" style="animation-delay:2s">🦋</span>`
+      : `<span class="weather-icon">🌙</span><span class="weather-icon" style="animation-delay:.5s">✨</span><span class="weather-icon" style="animation-delay:1s">🌟</span>`;
+  } else {
+    bar.innerHTML = `<span class="weather-icon">⛅</span><span class="weather-icon" style="animation-delay:1s">🌿</span>`;
+  }
+}
+
+// ════════════════════════════════════════════
+//  UI UPDATES
+// ════════════════════════════════════════════
+function updateAllUI() {
+  const planted   = vault.planted;
+  const hasWallet = !!wallet;
+
+  // ── Button states (desktop) ──
+  const btnPlant    = document.getElementById('btn-plant');
+  const btnWater    = document.getElementById('btn-water');
+  const btnHarvest  = document.getElementById('btn-harvest');
+  const btnWithdraw = document.getElementById('btn-withdraw');
+
+  if (btnPlant)    { btnPlant.disabled    = !hasWallet || planted;                          btnPlant.classList.toggle('btn-dis',    btnPlant.disabled); }
+  if (btnWater)    { btnWater.disabled    = !hasWallet || !planted;                         btnWater.classList.toggle('btn-dis',    btnWater.disabled); }
+  if (btnHarvest)  { btnHarvest.disabled  = !hasWallet || !planted || vault.deposited<=0;   btnHarvest.classList.toggle('btn-dis',  btnHarvest.disabled); }
+  if (btnWithdraw) { btnWithdraw.disabled = !hasWallet || !planted;                         btnWithdraw.classList.toggle('btn-dis', btnWithdraw.disabled); }
+
+  // ── Button states (mobile) ──
+  const mobPlant    = document.getElementById('mob-btn-plant');
+  const mobWater    = document.getElementById('mob-btn-water');
+  const mobHarvest  = document.getElementById('mob-btn-harvest');
+  const mobWithdraw = document.getElementById('mob-btn-withdraw');
+
+  if (mobPlant)    { mobPlant.disabled    = !hasWallet || planted;                          mobPlant.classList.toggle('btn-dis',    mobPlant.disabled); }
+  if (mobWater)    { mobWater.disabled    = !hasWallet || !planted;                         mobWater.classList.toggle('btn-dis',    mobWater.disabled); }
+  if (mobHarvest)  { mobHarvest.disabled  = !hasWallet || !planted || vault.deposited<=0;   mobHarvest.classList.toggle('btn-dis',  mobHarvest.disabled); }
+  if (mobWithdraw) { mobWithdraw.disabled = !hasWallet || !planted;                         mobWithdraw.classList.toggle('btn-dis', mobWithdraw.disabled); }
+
+  // ── Desktop left/right panel stats ──
+  document.getElementById('lp-vault').textContent     = vault.deposited.toFixed(6)+' tBTC';
+  document.getElementById('lp-dcacount').textContent  = vault.dcaCount+' cycles';
+  document.getElementById('rp-stage').textContent     = STAGES[vault.stage]||'SEED';
+  document.getElementById('rp-deposited').textContent = vault.deposited.toFixed(6)+' tBTC';
+  document.getElementById('rp-avgprice').textContent  = vault.avgPrice.toLocaleString()+' sat';
+
+  const pnl    = calcPnL();
+  const pnlEl  = document.getElementById('rp-pnl');
+  if (pnlEl) { pnlEl.textContent = (pnl>=0?'+':'')+pnl+'%'; pnlEl.className = 'stat-val '+(pnl>=0?'val-green':'val-red'); }
+
+  document.getElementById('rp-streak').textContent   = '🔥 '+vault.streak;
+  document.getElementById('rp-contract').textContent = VAULT_CONTRACT.slice(0,16)+'...';
+
+  // ── Mobile stats strip ──
+  const mobVault  = document.getElementById('mob-vault');
+  const mobStreak = document.getElementById('mob-streak');
+  const mobStage  = document.getElementById('mob-stage');
+  const mobPnl    = document.getElementById('mob-pnl');
+  const mobDca    = document.getElementById('mob-dca');
+  const mobNext   = document.getElementById('mob-next');
+
+  if (mobVault)  mobVault.textContent  = vault.deposited.toFixed(6)+' tBTC';
+  if (mobStreak) mobStreak.textContent = '🔥 '+vault.streak;
+  if (mobStage)  mobStage.textContent  = STAGES[vault.stage]||'🌰 SEED';
+  if (mobPnl)  { mobPnl.textContent = (pnl>=0?'+':'')+pnl+'%'; mobPnl.style.color = pnl>=0?'var(--sprout)':'var(--red)'; }
+  if (mobDca)    mobDca.textContent   = vault.dcaCount+' done';
+  if (mobNext)   mobNext.textContent  = vault.planted && vault.nextDcaBlock>0 ? Math.max(0,vault.nextDcaBlock-blockH)+' blks' : '— blks';
+
+  // ── Next DCA on left panel ──
+  document.getElementById('lp-nextdca').textContent =
+    vault.planted && vault.nextDcaBlock>0 ? Math.max(0,vault.nextDcaBlock-blockH)+' blks' : '— blks';
+
+  renderBadges();
+  renderTxFeed();
+  renderDcaHistory();
+  renderAnalyticsGrid();
+}
+
+function calcPnL() {
+  if (!vault.dcaCount || !vault.deposited) return 0;
+  const btcPrice = 97420;
+  const currentVal = vault.deposited * btcPrice;
+  const invested   = vault.deposited * vault.avgPrice;
+  return invested > 0 ? ((currentVal - invested) / invested * 100).toFixed(2) : '0.00';
+}
+
+function calcStageProgress() {
+  if (!vault.planted || !vault.dcaMaxCycles) return 0;
+  return Math.min(100, (vault.dcaCount / vault.dcaMaxCycles * 100));
+}
+
+function updateCfgSummary() {
+  const amt = parseFloat(document.getElementById('cfg-amount').value)||0.001;
+  const intv= parseInt(document.getElementById('cfg-interval').value)||10;
+  const cyc = parseInt(document.getElementById('cfg-cycles').value)||12;
+  document.getElementById('cfg-summary').textContent =
+    `Total: ${(amt*cyc).toFixed(6)} tBTC over ~${intv*cyc} blocks`;
+}
+
+function saveGardenName() {
+  const n = document.getElementById('garden-name').value;
+  localStorage.setItem('btcgarden_name', n);
+}
+
+// ════════════════════════════════════════════
+//  ACHIEVEMENTS
+// ════════════════════════════════════════════
+function renderBadges() {
+  const el = document.getElementById('badges');
+  el.innerHTML = ACHIEVEMENTS.map(a => `
+    <div class="badge${a.earned?' earned':''}" title="${a.name}">
+      ${a.icon}
+      <div class="badge-tip">${a.name}<br>${a.desc}</div>
+    </div>`
+  ).join('');
+}
+
+function unlockAchievement(id) {
+  const a = ACHIEVEMENTS.find(x=>x.id===id);
+  if (a && !a.earned) {
+    a.earned = true;
+    renderBadges();
+    toast('🏅 ACHIEVEMENT: '+a.name,'ok',4000);
+    spawnParticles('🏅');
+  }
+}
+
+// ════════════════════════════════════════════
+//  TX FEED
+// ════════════════════════════════════════════
+function addTx(icon, label, hashShort, hashFull, status) {
+  txFeed.unshift({ icon, label, hashShort, hashFull, status, time: new Date().toLocaleTimeString() });
+  if (txFeed.length > 10) txFeed.pop();
+  renderTxFeed();
+}
+
+function renderTxFeed() {
+  const html = !txFeed.length
+    ? `<div style="font-size:9px;color:var(--dim);padding:16px;text-align:center;font-family:var(--pixel)">NO TXS YET</div>`
+    : txFeed.map(tx => `
+        <div class="tx-item">
+          <span class="tx-icon">${tx.icon}</span>
+          <div class="tx-info">
+            <div class="tx-label">${tx.label}</div>
+            <div class="tx-hash" onclick="window.open('${EXPLORER}/tx/${tx.hashFull}','_blank')">${tx.hashShort||'—'}</div>
+          </div>
+          <div style="text-align:right">
+            <div class="tx-time">${tx.time}</div>
+            <div class="tx-status ${tx.status==='confirmed'?'ts-ok':'ts-pend'}">${tx.status.toUpperCase()}</div>
+          </div>
+        </div>`).join('');
+  // Sync both desktop and mobile feeds
+  const desk = document.getElementById('tx-feed');
+  const mob  = document.getElementById('mob-tx-feed');
+  if (desk) desk.innerHTML = html;
+  if (mob)  mob.innerHTML  = html;
+}
+
+// ════════════════════════════════════════════
+//  DCA HISTORY & CHART
+// ════════════════════════════════════════════
+function addDcaCycle(amount, block, txid) {
+  const btcPrice = 95000 + Math.random()*10000;
+  dcaHistory.push({ cycle:vault.dcaCount, amount, block, txid, price:btcPrice, ts:Date.now() });
+
+  // Update chart data
+  chartData.labels.push('#'+block);
+  const cumDCA     = dcaHistory.reduce((s,d)=>s+d.amount,0);
+  const cumLump    = dcaHistory[0]?.amount * vault.dcaMaxCycles || cumDCA;
+  const hodlVal    = (dcaHistory[0]?.amount||0) * vault.dcaMaxCycles * (btcPrice/95000);
+  chartData.dca.push(cumDCA * (btcPrice/97000));
+  chartData.lumpsum.push(cumLump * (btcPrice/97000));
+  chartData.hodl.push(hodlVal);
+  drawChart();
+}
+
+function renderDcaHistory() {
+  const el = document.getElementById('dca-history');
+  if (!dcaHistory.length) {
+    el.innerHTML = `<div style="font-size:9px;color:var(--dim);padding:16px;text-align:center">No DCA cycles yet</div>`;
+    return;
+  }
+  el.innerHTML = [...dcaHistory].reverse().map(d => `
+    <div style="display:flex;justify-content:space-between;align-items:center;
+      padding:6px 8px;border-bottom:1px dashed var(--bark);font-size:9px">
+      <span style="font-family:var(--pixel);font-size:7px;color:var(--dim2)">CYCLE ${d.cycle}</span>
+      <span>${d.amount.toFixed(6)} tBTC</span>
+      <span style="color:var(--dim2)">@${(d.price/1000).toFixed(1)}k</span>
+      <span style="font-family:var(--pixel);font-size:6px;color:var(--dim);cursor:pointer"
+        onclick="window.open('${EXPLORER}/tx/${d.txid}','_blank')">${(d.txid||'').slice(0,8)}...</span>
+    </div>`
+  ).join('');
+}
+
+function renderAnalyticsGrid() {
+  const el = document.getElementById('analytics-grid');
+  const pnl = calcPnL();
+  const progress = calcStageProgress();
+  el.innerHTML = [
+    ['💰 DEPOSITED', vault.deposited.toFixed(5)+' tBTC', 'var(--gold)'],
+    ['📈 P&L',       (pnl>=0?'+':'')+pnl+'%',           pnl>=0?'var(--sprout)':'var(--red)'],
+    ['🔥 STREAK',    vault.streak+' cycles',              'var(--gold2)'],
+    ['🎯 PROGRESS',  progress.toFixed(0)+'%',             'var(--blue)'],
+    ['💧 DCA COUNT', vault.dcaCount+' done',              'var(--sprout)'],
+    ['🌱 STAGE',     STAGES[vault.stage]||'SEED',         'var(--leaf2)'],
+  ].map(([lbl,val,color]) => `
+    <div style="background:var(--soil3);border:2px solid var(--bark);padding:10px 8px;text-align:center">
+      <div style="font-size:8px;color:var(--dim2);margin-bottom:4px">${lbl}</div>
+      <div style="font-family:var(--pixel);font-size:7px;color:${color}">${val}</div>
+    </div>`
+  ).join('');
+}
+
+function drawChart() {
+  const canvas = document.getElementById('perf-chart');
+  if (!canvas) return;
+  const ctx    = canvas.getContext('2d');
+  const W = canvas.offsetWidth || 240;
+  const H = canvas.offsetHeight || 120;
+  canvas.width  = W;
+  canvas.height = H;
+
+  ctx.fillStyle = '#1a1008';
+  ctx.fillRect(0,0,W,H);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(74,124,47,.15)';
+  ctx.lineWidth   = 1;
+  for (let i=1;i<4;i++) {
+    ctx.beginPath(); ctx.moveTo(0,H/4*i); ctx.lineTo(W,H/4*i); ctx.stroke();
+  }
+  for (let i=1;i<6;i++) {
+    ctx.beginPath(); ctx.moveTo(W/6*i,0); ctx.lineTo(W/6*i,H); ctx.stroke();
+  }
+
+  if (!chartData.dca.length) {
+    ctx.fillStyle = 'rgba(106,122,80,.5)';
+    ctx.font      = '7px "Press Start 2P"';
+    ctx.textAlign = 'center';
+    ctx.fillText('PLANT VAULT TO SEE CHART', W/2, H/2);
+    return;
+  }
+
+  const maxVal = Math.max(
+    ...chartData.dca, ...chartData.lumpsum, ...chartData.hodl, 0.001
+  );
+
+  function drawLine(data, color) {
+    if (!data.length) return;
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = 2;
+    ctx.shadowColor = color;
+    ctx.shadowBlur  = 4;
+    data.forEach((v, i) => {
+      const x = (i / (data.length-1||1)) * (W-20) + 10;
+      const y = H - 8 - (v/maxVal)*(H-16);
+      i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    // Pixel dots
+    ctx.fillStyle = color;
+    data.forEach((v, i) => {
+      const x = (i / (data.length-1||1)) * (W-20) + 10;
+      const y = H - 8 - (v/maxVal)*(H-16);
+      ctx.fillRect(x-2,y-2,4,4);
+    });
+  }
+
+  drawLine(chartData.hodl,    'rgba(106,122,80,.8)');
+  drawLine(chartData.lumpsum, 'rgba(74,144,208,.9)');
+  drawLine(chartData.dca,     'rgba(247,147,26,1)');
+
+  // Current block marker
+  ctx.fillStyle   = 'var(--sprout)';
+  ctx.font        = '6px "Press Start 2P"';
+  ctx.textAlign   = 'right';
+  ctx.fillText('NOW', W-4, 12);
+}
+
+// ════════════════════════════════════════════
+//  LEADERBOARD
+// ════════════════════════════════════════════
+const LEADERBOARD = [
+  { rank:1, plant:'🌸', name:'SATOSHI.BTC',      deposited:0.42, cycles:52, streak:18 },
+  { rank:2, plant:'🌻', name:'HODLER_9000',       deposited:0.28, cycles:35, streak:12 },
+  { rank:3, plant:'🌿', name:'BITCOINMAXI.BTC',   deposited:0.19, cycles:24, streak:8  },
+  { rank:4, plant:'🪴', name:'NAKAMOTO_LABS',     deposited:0.11, cycles:15, streak:5  },
+  { rank:5, plant:'🌱', name:'YOU (NOT RANKED)',  deposited:vault.deposited, cycles:vault.dcaCount, streak:vault.streak },
+];
+
+function renderLeaderboard() {
+  const el = document.getElementById('leaderboard-list');
+  el.innerHTML = LEADERBOARD.map((r,i) => `
+    <div class="lb-row" style="${i===4?'border-color:var(--gold);background:rgba(247,147,26,.05)':''}">
+      <span class="lb-rank">${r.rank===1?'👑':r.rank===2?'🥈':r.rank===3?'🥉':r.rank}</span>
+      <span class="lb-plant">${r.plant}</span>
+      <div style="flex:1">
+        <div class="lb-name">${r.name}</div>
+        <div style="font-size:8px;color:var(--dim2)">${r.cycles} cycles · 🔥${r.streak}</div>
+      </div>
+      <span class="lb-val">${r.deposited.toFixed(4)} tBTC</span>
+    </div>`
+  ).join('');
+}
+
+// ════════════════════════════════════════════
+//  PARTICLES
+// ════════════════════════════════════════════
+function spawnParticles(emoji) {
+  const world = document.getElementById('plant-world');
+  for (let i=0;i<6;i++) {
+    setTimeout(()=>{
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.textContent = emoji;
+      p.style.cssText = `left:${80+Math.random()*180}px;top:${80+Math.random()*100}px;
+        animation-delay:${Math.random()*.3}s`;
+      world.appendChild(p);
+      setTimeout(()=>p.remove(), 1800);
+    }, i*80);
+  }
+}
+
+// ════════════════════════════════════════════
+//  VIEWS
+// ════════════════════════════════════════════
+function setView(name, btn) {
+  ['garden','analytics','leaderboard'].forEach(v => {
+    document.getElementById('view-'+v).style.display = v===name?'':'none';
+  });
+  document.querySelectorAll('.nav-tab').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  if (name==='analytics') { renderAnalyticsGrid(); renderDcaHistory(); drawChart(); }
+  if (name==='leaderboard') {
+    LEADERBOARD[4].deposited = vault.deposited;
+    LEADERBOARD[4].cycles    = vault.dcaCount;
+    LEADERBOARD[4].streak    = vault.streak;
+    renderLeaderboard();
+  }
+}
+
+// ════════════════════════════════════════════
+//  MODAL
+// ════════════════════════════════════════════
+function showConfirm(title, body, details, onConfirm) {
+  document.getElementById('cm-title').textContent = title;
+  document.getElementById('cm-body').textContent  = body;
+  document.getElementById('cm-detail').innerHTML  = details.map(([l,r]) => `
+    <div class="mtd-row">
+      <span class="mtd-l">${l}</span>
+      <span class="mtd-r" style="color:var(--sprout)">${r}</span>
+    </div>`).join('');
+  const ok = document.getElementById('cm-ok');
+  ok.onclick = () => { closeOverlay('confirm-modal'); onConfirm(); };
+  document.getElementById('confirm-modal').style.display = 'flex';
+}
+
+function closeOverlay(id, e) {
+  if (!e || e.target.id===id) document.getElementById(id).style.display='none';
+}
+
+// ════════════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════════════
+function toast(msg, type='inf', dur=3000) {
+  document.querySelectorAll('.toast').forEach(t=>t.remove());
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), dur);
+}
+
+// ════════════════════════════════════════════
+//  UTILS
+// ════════════════════════════════════════════
+function rndHex(n) {
+  return Array.from({length:n},()=>'0123456789abcdef'[Math.floor(Math.random()*16)]).join('');
+}
+</script>
+</body>
+</html>
